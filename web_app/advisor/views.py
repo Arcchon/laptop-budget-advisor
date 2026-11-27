@@ -45,22 +45,18 @@ def home_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # ==============================================================================
-        # 📌 [POIN PENJELASAN 8 DI VIDEO]: KONTROLER DJANGO - AMBIL INPUT & FILTER DATABASE
-        # 1. Mengambil nominal budget dari form web dan membersihkan tanda titik/koma.
-        # 2. Memanggil get_budget_baseline() untuk menentukan spek wajar.
-        # 3. Menyaring laptop dari 1.303 data di SQLite lokal dalam rentang 45% - 103% budget.
-        # ==============================================================================
+        # Logika 1: Analisis Budget Pengguna
         if action == 'analyze_budget':
             mode = 'budget'
+            # Bersihkan titik dan koma dari input budget
             raw_budget = str(request.POST.get('budget', '8000000')).replace('.', '').replace(',', '').replace('Rp', '').strip()
             budget_input = int(raw_budget) if raw_budget.isdigit() else 8_000_000
             need_input = request.POST.get('need', 'coding')
 
-            # 1. Dapatkan baseline spek wajar
+            # 1. Hitung batas bawah spek wajar
             baseline = get_budget_baseline(budget_input, need_input)
 
-            # 2. Filter laptop di database SQLite: rentang 45% s/d 103% dari budget
+            # 2. Saring laptop dari database SQLite (rentang 45% sampai 103% budget)
             min_bound = max(2_000_000, int(budget_input * 0.45))
             max_bound = int(budget_input * 1.03)
 
@@ -68,16 +64,11 @@ def home_view(request):
             if not kandidat.exists():
                 kandidat = Laptop.objects.filter(harga_rupiah__lte=max_bound)
 
-            # ==============================================================================
-            # 📌 [POIN PENJELASAN 9 DI VIDEO]: FORMULA VALUE SCORE (BEST VALUE FOR MONEY)
-            # Menghitung rasio: Semakin tinggi performa perangkat keras per Rupiah yang dibayar,
-            # semakin tinggi skornya. Sistem mengurutkan dari yang tertinggi untuk mendapatkan
-            # 4 rekomendasi 'Best Deal'.
-            # ==============================================================================
+            # 3. Hitung Value Score: performa per Rupiah yang dibayar
             scored_list = []
             for item in kandidat:
                 perf = calculate_laptop_score(item, need_input)
-                # Value score: performa per rupiah yang dibayarkan
+                # Rumus value score: semakin besar skor per harga, semakin untung konsumen
                 val_score = (perf / item.harga_rupiah) * 10_000_000
                 scored_list.append({
                     'laptop': item,
@@ -85,7 +76,7 @@ def home_view(request):
                     'val_score': round(val_score, 2)
                 })
 
-            # Urutkan berdasarkan Value Score tertinggi (Paling untung / Best Deal)
+            # Urutkan dari skor tertinggi dan ambil 4 laptop terbaik
             scored_list.sort(key=lambda x: x['val_score'], reverse=True)
             rekomendasi = scored_list[:4]
             budget_result = True
