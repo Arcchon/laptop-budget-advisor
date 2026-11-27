@@ -45,7 +45,12 @@ def home_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # AKSI 1: Analisis Berdasarkan Budget
+        # ==============================================================================
+        # 📌 [POIN PENJELASAN 8 DI VIDEO]: KONTROLER DJANGO - AMBIL INPUT & FILTER DATABASE
+        # 1. Mengambil nominal budget dari form web dan membersihkan tanda titik/koma.
+        # 2. Memanggil get_budget_baseline() untuk menentukan spek wajar.
+        # 3. Menyaring laptop dari 1.303 data di SQLite lokal dalam rentang 45% - 103% budget.
+        # ==============================================================================
         if action == 'analyze_budget':
             mode = 'budget'
             raw_budget = str(request.POST.get('budget', '8000000')).replace('.', '').replace(',', '').replace('Rp', '').strip()
@@ -63,7 +68,12 @@ def home_view(request):
             if not kandidat.exists():
                 kandidat = Laptop.objects.filter(harga_rupiah__lte=max_bound)
 
-            # 3. Hitung Skor Performa & Skor Value-for-Money
+            # ==============================================================================
+            # 📌 [POIN PENJELASAN 9 DI VIDEO]: FORMULA VALUE SCORE (BEST VALUE FOR MONEY)
+            # Menghitung rasio: Semakin tinggi performa perangkat keras per Rupiah yang dibayar,
+            # semakin tinggi skornya. Sistem mengurutkan dari yang tertinggi untuk mendapatkan
+            # 4 rekomendasi 'Best Deal'.
+            # ==============================================================================
             scored_list = []
             for item in kandidat:
                 perf = calculate_laptop_score(item, need_input)

@@ -8,6 +8,7 @@ MODEL_PATH = os.path.join(BASE_DIR, 'laptop_price_model.joblib')
 _cached_model = None
 
 def get_model():
+    """Memuat model binary yang telah dilatih (caching di memori)"""
     global _cached_model
     if _cached_model is None:
         if os.path.exists(MODEL_PATH):
@@ -17,10 +18,16 @@ def get_model():
     return _cached_model
 
 
+# ==============================================================================
+# 📌 [POIN PENJELASAN 5 DI VIDEO]: SISTEM AMBANG BATAS SPEK WAJAR (BASELINE RULES)
+# Fungsi ini bertindak sebagai 'Sistem Pakar' penasihat budget:
+# Menentukan batas bawah spesifikasi yang berhak didapat pengguna di pasar:
+# - Budget < 5 Juta  : Minimal RAM 4GB, SSD 128GB, CPU Celeron/Core i3
+# - Budget 5 - 9 Jt  : Minimal RAM 8GB, SSD 256GB, CPU Core i5 / Ryzen 5 (Sweet spot mahasiswa TI)
+# - Budget 9 - 16 Jt : Minimal RAM 16GB, SSD 512GB, Dedicated GPU Nvidia GTX/RTX
+# - Budget > 16 Jt   : Kelas Flagship / Workstation (Layar Akurasi Tinggi, RTX series)
+# ==============================================================================
 def get_budget_baseline(budget_idr: int, need: str = 'coding'):
-    """
-    Menghasilkan 'Spek Minimal yang Wajib Didapat' berdasarkan budget pengguna.
-    """
     if budget_idr < 5_000_000:
         tier = "Entry-Level / Pelajar"
         min_ram = 4
@@ -71,10 +78,14 @@ def get_budget_baseline(budget_idr: int, need: str = 'coding'):
     }
 
 
+# ==============================================================================
+# 📌 [POIN PENJELASAN 6 DI VIDEO]: PEMBOBOTAN SKOR MULTI-KRITERIA (PERFORMANCE SCORING)
+# Menghitung skor performa teknis (0 - 100) dari setiap unit laptop berdasarkan kebutuhan:
+# - Kebutuhan Gaming/Render : Bobot GPU 45%, CPU 30%, RAM 15%, SSD 10%.
+# - Kebutuhan Coding/Kuliah : Bobot CPU 40%, RAM 35%, SSD 15%, GPU 10%.
+# - Kebutuhan Office/Mobilitas : Bobot CPU 30%, RAM 35%, SSD 25%, GPU 10%.
+# ==============================================================================
 def calculate_laptop_score(laptop, need: str = 'coding') -> float:
-    """
-    Menghitung skor performa teknis (0 - 100) berdasarkan bobot kebutuhan.
-    """
     # 1. Skor CPU
     cpu_str = f"{laptop.cpu} {laptop.cpu_brand}"
     if 'Core i9' in cpu_str or 'Ryzen 9' in cpu_str: cpu_score = 100
@@ -91,10 +102,10 @@ def calculate_laptop_score(laptop, need: str = 'coding') -> float:
     elif 'Iris' in gpu_str: gpu_score = 55
     else: gpu_score = 35
 
-    # 3. Skor RAM (32GB = 100)
+    # 3. Skor RAM (Normalisasi 32GB = 100)
     ram_score = min(100.0, (laptop.ram_gb / 32.0) * 100.0)
 
-    # 4. Skor SSD (1024GB = 100)
+    # 4. Skor SSD (Normalisasi 1024GB = 100)
     ssd_score = min(100.0, (laptop.ssd_gb / 1024.0) * 100.0)
 
     # Pembobotan Multi-Kriteria
@@ -108,10 +119,12 @@ def calculate_laptop_score(laptop, need: str = 'coding') -> float:
     return round(perf, 1)
 
 
+# ==============================================================================
+# 📌 [POIN PENJELASAN 7 DI VIDEO]: PREDIKSI HARGA FITUR DUA ARAH (MACHINE LEARNING)
+# Jika pengguna memasukkan spesifikasi custom di tab Kalkulator ML, fungsi ini
+# memanggil model Random Forest tersimpan untuk mengestimasi harga wajar di pasar.
+# ==============================================================================
 def predict_price(company, typename, cpu_brand, gpu_brand, ram_gb, ssd_gb, touchscreen, inches):
-    """
-    Prediksi harga menggunakan model Machine Learning yang telah dilatih.
-    """
     model = get_model()
     df_input = pd.DataFrame([{
         'Company': company,
